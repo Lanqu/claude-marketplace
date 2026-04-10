@@ -1,0 +1,7 @@
+{
+  "name": "psych-review",
+  "version": "2.0.0",
+  "description": "Multi-perspective code review through simulated cognitive disorder lenses",
+  "author": "Lanqu",
+  "tags": ["code-review", "multi-agent", "parallel"]
+}
