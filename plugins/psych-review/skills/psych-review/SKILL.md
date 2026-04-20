@@ -111,15 +111,36 @@ For each finding, use this exact structure:
 
 FINDING {N}:
 file: {relative file path}
-line: {line number or range}
+line: {line number or range, or null for non-code findings}
 tag: [{short canonical tag, e.g. null-safety, naming, injection, complexity}]
 severity: {high | medium | low}
+quote: |
+  {verbatim text from the file, 1-10 lines, exactly as it appears, or null}
 comment: {your finding, in character voice}
+
+Rules for the `quote` field:
+- MUST be a verbatim copy of text from the file you just read. No paraphrase, no ellipsis-in-the-middle.
+- If your comment does not reference specific code (a general vibe observation), set `quote: null` and set `line: null`.
+- If you cannot find the code you want to critique, DO NOT fabricate a quote. Drop the finding.
+- This field is checked in Phase 3.5 — fabricated quotes will be dropped from the consensus.
 
 After all findings, write:
 SUMMARY: {1-2 sentence summary in character}
 FINDING_COUNT: {total number of findings}
 ```
+
+### Phase 3.5: Verify Claims
+
+Before aggregating consensus, the orchestrator (not the persona agents) must verify every finding that has a non-null `quote`:
+
+1. For each finding, read the referenced file and grep for the `quote` text (use the Grep tool with `multiline: true` if the quote spans multiple lines).
+2. If the quote does not appear verbatim in the file: mark the finding UNVERIFIED. Exclude it from consensus and unique-finds sections, and report it in a separate "Unverified claims" section (see Phase 5).
+3. If the quote appears but the `line` value is wrong by more than ±5 lines: correct the line range silently.
+4. For structural claims ("these two paths hit different branches"), do not attempt to verify the claim itself — verifying the quote is sufficient. If the quote is real, the claim is falsifiable by a human reviewer.
+
+Verification is grep-based and cheap. Do not invoke another LLM for it.
+
+Why this step exists: personas under role-play pressure sometimes fabricate specific code-location claims (e.g., "lines 42-65 duplicate lines 108-131") to sound authoritative. Without a verification step, fabricated claims enter consensus alongside real findings. The `quote` requirement makes fabrication falsifiable; this step falsifies it.
 
 ### Phase 4: Aggregate Consensus
 
@@ -161,7 +182,19 @@ These are the findings only one reviewer caught. They may be noise, but they are
 | 1 | ADHD | path/to/file.kt | stale-comment | Found a TODO from 2019 | low |
 ```
 
-**Section 3 (only with `--verbose`): Per-Reviewer Tables**
+**Section 3: Unverified Claims (omit if empty)**
+
+Findings dropped during Phase 3.5 because the `quote` field did not match the file. Show these so the user can see what was filtered and by which persona — this calibrates trust in the persona and exposes fabrication patterns.
+
+```
+## Unverified Claims
+
+| # | Reviewer | File | Tag | Claim | Reason Dropped |
+|---|----------|------|-----|-------|----------------|
+| 1 | Schizoid | path/to/file.kt | complexity | Full claim text | Quote not found in file |
+```
+
+**Section 4 (only with `--verbose`): Per-Reviewer Tables**
 
 For each reviewer, present their full findings table:
 
